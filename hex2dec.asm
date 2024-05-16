@@ -5,13 +5,13 @@ WriteConsoleA PROTO
 
 .data
 ; Constants
-mybits		equ			16
+mybits		equ			64
 stdout		equ			-11
 
 ; Variables
-num			WORD		125h
-ans			BYTE		16 dup(0)
-mystr		BYTE		17 dup('$')
+num			QWORD		0ffffffffffffh
+ans			BYTE		mybits dup(0)
+mystr		BYTE		mybits dup('$')
 mystrlen	QWORD		0
 numwritten	BYTE		?
 handle		QWORD		?
@@ -30,21 +30,21 @@ main PROC
 ; Setup AX with our number
 ; Setup 10 as our divisor
 ; Load the address of 'ans' to hold the answer in reverse order
-	mov	ax, num
-	mov cx, 0ah
+	mov	rax, num
+	mov rcx, 0ah
 	lea rsi, ans
 
 ;
 up:
 	
 	xor rdx, rdx			; Set the remainder for the divide to zero
-	div	cx					; Divide RAX by CX (16 bit)
-	mov [rsi], dl			; Copy the 8-bit remainder into 'ans' memory+si and increment si
-	inc si					; Inrement 'ans' on memory position
+	div	rcx					; Divide RAX by CX (16 bit)
+	mov [rsi], rdx			; Copy the 8-bit remainder into 'ans' memory+si and increment si
+	inc rsi					; Inrement 'ans' on memory position
 	cmp rax, rcx			; Compare quotent remaining to 10 and if rax > 10, loop
 	jae up
 
-	mov	[rsi], al			; rax < 10, write the last digit to 'ans'
+	mov	[rsi], rax			; rax < 10, write the last digit to 'ans'
 
 ; Print the number by reversing the hex bytes
 
