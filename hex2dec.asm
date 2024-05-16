@@ -3,7 +3,6 @@ ExitProcess PROTO
 GetStdHandle PROTO
 WriteConsoleA PROTO
 
-
 .data
 ; Constants
 mybits		equ			16
