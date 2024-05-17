@@ -5,20 +5,60 @@ WriteConsoleA PROTO
 
 
 .data
-; Constants
-STDOUT		equ			-11
-NUMBITS		equ			24
 
 ; Variables
 num			QWORD		10h
-ans			BYTE		NUMBITS dup(0)
-mystr		BYTE		NUMBITS dup(0)
+ans			BYTE		24 dup(0)
+mystr		BYTE		24 dup(0)
 mystrlen	BYTE		1 dup(0)
 pad			BYTE		1 dup(0)
 numwritten	BYTE		?
 msg			BYTE		"Enter a hexidecimal number: ", 0
 
 .code
+
+;	  Procedure: hex2dec
+;
+;	Description: stores a decimal number in reverse order into a variable.
+;
+;	Arguments:
+;     Pushed on the stack
+;
+;   Registers: rax, rcx, rdx, rsi
+;
+;	Return: None
+
+hex2dec PROC
+	push rbp
+	mov rbp, rsp
+;
+; Change the number from hexidecimal to decimal
+;
+	;xor rax,rax				; Clean out the registers we are using
+	;xor rcx,rcx
+	;xor rsi,rsi
+	xor rdx,rdx
+
+	mov rax, [rbp+24]
+	mov rsi, [rbp+16]
+	mov rcx, 0ah			; Setup RCX with the divisor
+
+up:
+	
+	xor rdx, rdx			; Set the remainder for the divide to zero
+	div	rcx					; Divide RAX by CX (16 bit)
+	mov [rsi], dl			; Copy the 8-bit remainder into 'ans' memory+si and increment si
+	inc rsi					; Inrement 'ans' on memory position
+	cmp rax, rcx			; Compare quotent remaining to 10 and if rax > 10, loop
+	jae up
+
+	mov	[rsi], al			; rax < 10, write the last digit to 'ans'
+
+	mov rsp, rbp
+	pop rbp
+	ret
+hex2dec ENDP
+
 ;	  Procedure: reverse_bytes_to_ascii
 ;
 ;	Description: Reverse a count of bytes and store in a string.
@@ -80,8 +120,8 @@ print_dec PROC
 	mov rbp, rsp
 	xor r8,r8
 
-	; Get a standard handle
-	mov rcx, STDOUT			; Load rcx with STDOUT
+	; Get a standard handle for Standard Out [device code -11]
+	mov rcx, -11			; Load rcx with STDOUT
 	CALL GetStdHandle		; Get a handle
 	push rax				; GetStdHandle returns in RAX
 	pop rcx					; It needs to be in rcx for the console write
@@ -98,35 +138,27 @@ print_dec PROC
 print_dec ENDP
 
 main PROC
-;
-; Change the number from hexidecimal to decimal
-;
-	xor rax,rax				; Clean out the registers we are using
-	xor rcx,rcx
-	xor rsi,rsi
-	xor rdx,rdx
+
+	; setup the call 'hex2dec(number, Address of string)
+	; and call it
 
 	mov	rax, num			; load RAX with the number
-	mov rcx, 0ah			; Setup RCX with the divisor
 	lea rsi, ans			; Address of Answer
 
-up:
-	
-	xor rdx, rdx			; Set the remainder for the divide to zero
-	div	rcx					; Divide RAX by CX (16 bit)
-	mov [rsi], dl			; Copy the 8-bit remainder into 'ans' memory+si and increment si
-	inc rsi					; Inrement 'ans' on memory position
-	cmp rax, rcx			; Compare quotent remaining to 10 and if rax > 10, loop
-	jae up
+	push rax
+	push rsi
 
-	mov	[rsi], al			; rax < 10, write the last digit to 'ans'
+	call hex2dec
 
-	mov rcx, NUMBITS		; Initialize the counter to 1 minus the number of bits because the index starts at 0
+	mov rcx, 24		; Initialize the counter to 1 minus the number of bits because the index starts at 0
+							; Max we should see for a 64 bit number is 24
 	dec rcx
 	lea rsi, ans			; Intialize the source index to start at the end
 	add rsi,rcx				; Initialize source index to the end of the data
 	lea rdi, mystr			; Initialize the destination index to start at the begining
 
+	; setup the call 'reverse_bytes_to_ascii(number of bytes, Address of source, address of destination)
+	; and call it
 	push rcx
 	push rsi
 	push rdi
