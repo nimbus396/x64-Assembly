@@ -9,7 +9,7 @@ mybits		equ			64
 stdout		equ			-11
 
 ; Variables
-num			QWORD		0ffffffffffffh
+num			QWORD		0ffffffffffffffffh
 ans			BYTE		mybits dup(0)
 mystr		BYTE		mybits dup('$')
 mystrlen	QWORD		0
@@ -27,14 +27,11 @@ main PROC
 	xor rsi,rsi
 	xor rdx,rdx
 
-; Setup AX with our number
-; Setup 10 as our divisor
-; Load the address of 'ans' to hold the answer in reverse order
-	mov	rax, num
-	mov rcx, 0ah
-	lea rsi, ans
+; Calculate the decimal value and store in ans
+	mov	rax, num			; load the number to rax
+	mov rcx, 0ah			; load rcx with the divsor
+	lea rsi, ans			; load the address of 'ans+0' as our source index
 
-;
 up:
 	
 	xor rdx, rdx			; Set the remainder for the divide to zero
