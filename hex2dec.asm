@@ -147,8 +147,9 @@ main PROC
 
 	push rax
 	push rsi
-
 	call hex2dec
+	pop rsi
+	pop rax
 
 	mov rcx, 24		; Initialize the counter to 1 minus the number of bits because the index starts at 0
 							; Max we should see for a 64 bit number is 24
