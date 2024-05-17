@@ -3,94 +3,154 @@ ExitProcess PROTO
 GetStdHandle PROTO
 WriteConsoleA PROTO
 
+
 .data
 ; Constants
-mybits		equ			64
-stdout		equ			-11
+STDOUT		equ			-11
+NUMBITS		equ			24
 
 ; Variables
-num			QWORD		0ffffffffffffffffh
-ans			BYTE		mybits dup(0)
-mystr		BYTE		mybits dup('$')
-mystrlen	QWORD		0
+num			QWORD		10h
+ans			BYTE		NUMBITS dup(0)
+mystr		BYTE		NUMBITS dup(0)
+mystrlen	BYTE		1 dup(0)
+pad			BYTE		1 dup(0)
 numwritten	BYTE		?
-handle		QWORD		?
-
-
+msg			BYTE		"Enter a hexidecimal number: ", 0
 
 .code
-main PROC
-; Clean out the registers we are using
+;	  Procedure: reverse_bytes_to_ascii
+;
+;	Description: Reverse a count of bytes and store in a string.
+;                The procedure will strip all leading zeros from
+;                the hexidecimal input and write a string to
+;                the destination. The actual number of bytes
+;                will be store in RDI upon return.
+;
+;	Arguments:
+;     Pushed on the stack
+;
+;   Registers: rax, rcx, rdx, rdi, rsi
+;
+;	Return: rdx - number of bytes stored at destination
+reverse_bytes_to_ascii PROC
 
-	xor rax,rax
-	xor rcx,rcx
-	xor rsi,rsi
-	xor rdx,rdx
+	push rbp
+	mov rbp, rsp
 
-; Calculate the decimal value and store in ans
-	mov	rax, num			; load the number to rax
-	mov rcx, 0ah			; load rcx with the divsor
-	lea rsi, ans			; load the address of 'ans+0' as our source index
-
-up:
-	
-	xor rdx, rdx			; Set the remainder for the divide to zero
-	div	rcx					; Divide RAX by CX (16 bit)
-	mov [rsi], rdx			; Copy the 8-bit remainder into 'ans' memory+si and increment si
-	inc rsi					; Inrement 'ans' on memory position
-	cmp rax, rcx			; Compare quotent remaining to 10 and if rax > 10, loop
-	jae up
-
-	mov	[rsi], rax			; rax < 10, write the last digit to 'ans'
-
-; Print the number by reversing the hex bytes
-
-	xor rax, rax			; Clear the registers we are using
-	xor rcx, rcx
+	xor rax, rax
 	xor rdx, rdx
-
-	lea rsi, ans			; Intialize the source index to start at the end
-	mov rcx, mybits-1		; Initialize the counter to 1 minus the number of bits because the index starts at 0
-	add rsi,rcx				; Initialize source index to the end of the data
-
-	; Initialize the destination index to start at the beginning
-	lea rdi, mystr
+	mov rdi, [rbp+16]
+	mov rsi, [rbp+24]
+	mov rcx, [rbp+32]
 
 cont:
+
 	mov al, [rsi]			; check [next] byte at the end to see if it is non-zero
 	cmp al,0				;	if it is, skip it
 	jz next
 	add al, 30h				; Convert the decimal to an ASCII equivalent
 	mov [rdi], al			; Store the ASCII in the destination
 	inc rdi					; Increment the destination by one memory location
-	inc [mystrlen]			; Keep track of the actual length
+	inc rdx
+
 next:
+
 	dec rsi					; We are going backwards, decrement the source
 	dec rcx					; Decrement the counter
 	cmp rcx, -1				; We want the 0th byte too so, check for -1
 	jg cont					; Jump if rcx > -1
+	mov rsp, rbp
+	pop rbp
+	ret
+reverse_bytes_to_ascii ENDP
 
+;	  Procedure: print_dec
+;
+;	Description: Uses WriteConsole function in windows library.
+;                Changes rdx, r8, r9
+;
+;	Arguments:
+;	Pushed on the stack
+;
+;	Return: None
+print_dec PROC
 ; Print it out
-
-	xor rax, rax			; Clear registers we are using
-	xor rcx, rcx
-	xor rdx, rdx
-	xor r8, r8
-	xor r9, r9
-	sub rsp, 32				; Shadow space for arguments
+	push rbp
+	mov rbp, rsp
+	xor r8,r8
 
 	; Get a standard handle
-	mov rcx, stdout			; Load rcx with STDOUT
+	mov rcx, STDOUT			; Load rcx with STDOUT
 	CALL GetStdHandle		; Get a handle
-	mov handle, RAX			; Save the handle in a variable 'handle'
+	push rax				; GetStdHandle returns in RAX
+	pop rcx					; It needs to be in rcx for the console write
 
 	; Write to the console
-	mov rcx, handle			; Load the handle in arg1 
-	lea rdx, mystr			; Load mystr in arg2
-	mov r8, [mystrlen]		; Load length in arg3
-	lea r9, num				; Set the address to write the return value
+	mov rdx, [rbp+24]		; set the address of the string
+	mov r8b, [rbp+32]		; Set number of characters to write
+	mov r9, [rbp+16]		; set the address of the variable for number of bytes written
 	call WriteConsoleA		; Call to write to console
-	add rsp, 32				; Remove shadow space from stack
+	mov rsp, rbp
+	pop rbp
+	ret
+
+print_dec ENDP
+
+main PROC
+;
+; Change the number from hexidecimal to decimal
+;
+	xor rax,rax				; Clean out the registers we are using
+	xor rcx,rcx
+	xor rsi,rsi
+	xor rdx,rdx
+
+	mov	rax, num			; load RAX with the number
+	mov rcx, 0ah			; Setup RCX with the divisor
+	lea rsi, ans			; Address of Answer
+
+up:
+	
+	xor rdx, rdx			; Set the remainder for the divide to zero
+	div	rcx					; Divide RAX by CX (16 bit)
+	mov [rsi], dl			; Copy the 8-bit remainder into 'ans' memory+si and increment si
+	inc rsi					; Inrement 'ans' on memory position
+	cmp rax, rcx			; Compare quotent remaining to 10 and if rax > 10, loop
+	jae up
+
+	mov	[rsi], al			; rax < 10, write the last digit to 'ans'
+
+	mov rcx, NUMBITS		; Initialize the counter to 1 minus the number of bits because the index starts at 0
+	dec rcx
+	lea rsi, ans			; Intialize the source index to start at the end
+	add rsi,rcx				; Initialize source index to the end of the data
+	lea rdi, mystr			; Initialize the destination index to start at the begining
+
+	push rcx
+	push rsi
+	push rdi
+
+	call reverse_bytes_to_ascii
+
+	pop rdi
+	pop rsi
+	pop rcx
+
+	; setup the call 'print_dec(length, string, return)
+	; and call it
+
+	lea rsi, mystr
+	lea rdi, num
+
+	push rdx
+	push rsi
+	push rdi
+	call print_dec
+	pop rdi
+	pop rsi
+	pop rdx
+
 ; Clean Exit
 	mov rcx,0
 	CALL ExitProcess
