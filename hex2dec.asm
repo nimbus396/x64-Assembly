@@ -34,11 +34,6 @@ hex2dec PROC
 ;
 ; Change the number from hexidecimal to decimal
 ;
-	;xor rax,rax				; Clean out the registers we are using
-	;xor rcx,rcx
-	;xor rsi,rsi
-	xor rdx,rdx
-
 	mov rax, [rbp+24]
 	mov rsi, [rbp+16]
 	mov rcx, 0ah			; Setup RCX with the divisor
